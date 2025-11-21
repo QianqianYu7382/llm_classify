@@ -1,60 +1,39 @@
 """
-real_data_lm_experiment.py
+real_data_lm_experiment.py (with TXT output)
 
 在真实数据 (training_data.csv / test_data.csv) 上
-使用基于 trigram 语言模型的 ClassConditionalLMClassifier 做新闻主题分类。
-
-要求：和 lm_classifier.py 放在同一目录。
+使用 trigram ClassConditionalLMClassifier 做分类，
+并将完整输出写入 real_lm_results.txt。
 """
 
 import pandas as pd
-from typing import Tuple, List
+import numpy as np
+import sys
+from io import StringIO
 
-# 从你之前的文件中复用语言模型分类器
 from lm_classifier import ClassConditionalLMClassifier
+from sklearn.metrics import classification_report, confusion_matrix
 
-# 真实数据的类别名字（AG News 风格）
 TOPIC_NAMES = ["World", "Sports", "Business", "Sci/Tech"]
 
 
 # -----------------------------
-# 1. 读入并清洗真实数据
+# 1. 加载真实数据
 # -----------------------------
-
 def load_real_data(
     train_path: str = "training_data.csv",
     test_path: str = "test_data.csv",
-) -> Tuple[List[str], List[int], List[str], List[int]]:
-    """
-    读取真实数据：
-      - training_data.csv：有 header，列名为 'text', 'label'
-      - test_data.csv：无 header，需要手动指定列名
-
-    返回：
-      X_train, y_train, X_test, y_test
-    """
-    # 1) 训练数据：已经是干净的 text + label
+):
     train_df = pd.read_csv(train_path)
+    test_df = pd.read_csv(test_path, header=None, names=["text", "label"])
 
-    # 做一些简单的 sanity check
-    if not {"text", "label"} <= set(train_df.columns):
-        raise ValueError(
-            f"training_data.csv should have columns ['text', 'label'], "
-            f"but got {list(train_df.columns)}"
-        )
-
-    # 确保类型正确
     train_df["text"] = train_df["text"].astype(str)
     train_df["label"] = train_df["label"].astype(int)
-
-    # 2) 测试数据：你的文件里第一行被当成列名了，需要重新读
-    # 原来的列名是类似一整句新闻标题，所以我们强制 header=None。
-    test_df = pd.read_csv(test_path, header=None, names=["text", "label"])
 
     test_df["text"] = test_df["text"].astype(str)
     test_df["label"] = test_df["label"].astype(int)
 
-    # 3) 去掉可能的空文本行
+    # 去掉空行
     train_df = train_df[train_df["text"].str.strip() != ""]
     test_df = test_df[test_df["text"].str.strip() != ""]
 
@@ -73,34 +52,33 @@ def load_real_data(
 
 
 # -----------------------------
-# 2. 在真实数据上训练 + 测试 LM 分类器
+# 2. 主实验流程（写入txt）
 # -----------------------------
-
 def run_real_data_experiment():
-    # 读数据
-    X_train, y_train, X_test, y_test = load_real_data(
-        train_path="training_data.csv",
-        test_path="test_data.csv",
-    )
 
-    # 定义基于 trigram 的 LM 分类器
+    # 捕获所有 print 输出
+    buffer = StringIO()
+    original_stdout = sys.stdout
+    sys.stdout = buffer
+
+    # ---------------- 开始输出 ----------------
+    print("[INFO] Loading data...")
+    X_train, y_train, X_test, y_test = load_real_data()
+
     clf = ClassConditionalLMClassifier(
         n=3,           # trigram
-        unk_threshold=2,  # 稍微提高一点 unk_threshold，减少稀疏
-        alpha=0.5,     # 平滑系数，可以调
+        unk_threshold=2,
+        alpha=0.5,
     )
 
-    print("[INFO] Fitting trigram LM classifier on real training data...")
+    print("[INFO] Fitting trigram LM classifier...")
     clf.fit(X_train, y_train)
 
-    # 计算整体准确率
     acc = clf.score(X_test, y_test)
     print(f"\n[RESULT] LM classifier accuracy on REAL test set: {acc:.4f}\n")
 
-    # 打印若干预测示例，方便 qualitative 分析
     print("Sample predictions on real test data:")
-    num_examples = 10
-    for i in range(num_examples):
+    for i in range(min(10, len(X_test))):
         text = X_test[i]
         true_label = y_test[i]
         pred_label = clf.predict([text])[0]
@@ -109,25 +87,30 @@ def run_real_data_experiment():
         print("True label :", true_label, "-", TOPIC_NAMES[true_label])
         print("Pred label :", pred_label, "-", TOPIC_NAMES[pred_label])
 
-    # （可选）如果你安装了 scikit-learn，可以输出更详细的分类报告
-    try:
-        from sklearn.metrics import classification_report, confusion_matrix
+    # classification report
+    y_pred = clf.predict(X_test)
 
-        import numpy as np
-        y_pred = clf.predict(X_test)
-        print("\nClassification report (per-class precision/recall/F1):")
-        print(classification_report(y_test, y_pred, target_names=TOPIC_NAMES))
+    print("\nClassification report:")
+    print(classification_report(y_test, y_pred, target_names=TOPIC_NAMES))
 
-        print("Confusion matrix:")
-        print(confusion_matrix(y_test, y_pred))
-    except ImportError:
-        print("\n[NOTE] scikit-learn is not installed, so no classification_report/confusion_matrix.")
-        print("       If you want them, please run: pip install scikit-learn")
+    print("\nConfusion matrix:")
+    print(confusion_matrix(y_test, y_pred))
+
+    # ---------------- 完成输出 ----------------
+
+    # 恢复 stdout
+    sys.stdout = original_stdout
+
+    # 写入文件
+    output_path = "real_lm_results.txt"
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(buffer.getvalue())
+
+    print(f"[INFO] All results written to {output_path}")
 
 
 # -----------------------------
 # 3. 主入口
 # -----------------------------
-
 if __name__ == "__main__":
     run_real_data_experiment()

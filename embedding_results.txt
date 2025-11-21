@@ -1,0 +1,69 @@
+[INFO] Loading data...
+[INFO] Loading SentenceTransformer model (all-MiniLM-L6-v2)...
+[INFO] Encoding training data...
+[INFO] Encoding test data...
+[INFO] Embedding shape: train (120000, 384), test (20, 384)
+[INFO] Training classifier...
+[INFO] Evaluating on test set...
+
+[RESULT] Accuracy on REAL test set = 0.8000
+
+Classification report:
+              precision    recall  f1-score   support
+
+       World       0.75      0.60      0.67         5
+      Sports       0.83      1.00      0.91         5
+    Business       0.80      0.80      0.80         5
+    Sci/Tech       0.80      0.80      0.80         5
+
+    accuracy                           0.80        20
+   macro avg       0.80      0.80      0.79        20
+weighted avg       0.80      0.80      0.79        20
+
+Confusion matrix:
+[[3 0 1 1]
+ [0 5 0 0]
+ [1 0 4 0]
+ [0 1 0 4]]
+
+Sample predictions (first 10):
+----------------------------------------------------------------------
+TEXT       : Three quarters of financial firms still conducting anti-money laundering checks manually
+True label : 2 - Business
+Pred label : 2 - Business
+----------------------------------------------------------------------
+TEXT       : European stocks rally on hope ECB may be done with interest rate hikes
+True label : 2 - Business
+Pred label : 2 - Business
+----------------------------------------------------------------------
+TEXT       : Gold prices have hit a new high, while the value of Bitcoin has also surged.
+True label : 2 - Business
+Pred label : 2 - Business
+----------------------------------------------------------------------
+TEXT       : Why food discount stickers may be a thing of the past
+True label : 2 - Business
+Pred label : 2 - Business
+----------------------------------------------------------------------
+TEXT       : German cabinet tries to solve ‘no-debt’ crisis after court outlaws budget
+True label : 2 - Business
+Pred label : 0 - World
+----------------------------------------------------------------------
+TEXT       : Indonesia's volcano eruption leaves 22 dead
+True label : 0 - World
+Pred label : 0 - World
+----------------------------------------------------------------------
+TEXT       : Adverts for Air France, Lufthansa and Etihad have been banned for misleading consumers about the airlines' environmental impact.
+True label : 0 - World
+Pred label : 2 - Business
+----------------------------------------------------------------------
+TEXT       : Maori MP performs haka before swearing oath to King
+True label : 0 - World
+Pred label : 0 - World
+----------------------------------------------------------------------
+TEXT       : Philippines earthquake: Video shows chaos in shop as tremors hit
+True label : 0 - World
+Pred label : 0 - World
+----------------------------------------------------------------------
+TEXT       : Wakeskater plunges off Dubai skyscraper pool in 'world first'
+True label : 0 - World
+Pred label : 3 - Sci/Tech

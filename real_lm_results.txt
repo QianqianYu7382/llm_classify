@@ -1,0 +1,83 @@
+[INFO] Loading data...
+[INFO] Loaded real data:
+  Train size = 120000
+  Test  size = 20
+  Train label distribution:
+label
+2    30000
+3    30000
+1    30000
+0    30000
+Name: count, dtype: int64
+  Test  label distribution:
+label
+2    5
+0    5
+1    5
+3    5
+Name: count, dtype: int64
+
+[INFO] Fitting trigram LM classifier...
+
+[RESULT] LM classifier accuracy on REAL test set: 0.3500
+
+Sample predictions on real test data:
+--------------------------------------------------------------------------------
+TEXT       : Three quarters of financial firms still conducting anti-money laundering checks manually
+True label : 2 - Business
+Pred label : 0 - World
+--------------------------------------------------------------------------------
+TEXT       : European stocks rally on hope ECB may be done with interest rate hikes
+True label : 2 - Business
+Pred label : 2 - Business
+--------------------------------------------------------------------------------
+TEXT       : Gold prices have hit a new high, while the value of Bitcoin has also surged.
+True label : 2 - Business
+Pred label : 2 - Business
+--------------------------------------------------------------------------------
+TEXT       : Why food discount stickers may be a thing of the past
+True label : 2 - Business
+Pred label : 3 - Sci/Tech
+--------------------------------------------------------------------------------
+TEXT       : German cabinet tries to solve ‘no-debt’ crisis after court outlaws budget
+True label : 2 - Business
+Pred label : 2 - Business
+--------------------------------------------------------------------------------
+TEXT       : Indonesia's volcano eruption leaves 22 dead
+True label : 0 - World
+Pred label : 2 - Business
+--------------------------------------------------------------------------------
+TEXT       : Adverts for Air France, Lufthansa and Etihad have been banned for misleading consumers about the airlines' environmental impact.
+True label : 0 - World
+Pred label : 1 - Sports
+--------------------------------------------------------------------------------
+TEXT       : Maori MP performs haka before swearing oath to King
+True label : 0 - World
+Pred label : 2 - Business
+--------------------------------------------------------------------------------
+TEXT       : Philippines earthquake: Video shows chaos in shop as tremors hit
+True label : 0 - World
+Pred label : 0 - World
+--------------------------------------------------------------------------------
+TEXT       : Wakeskater plunges off Dubai skyscraper pool in 'world first'
+True label : 0 - World
+Pred label : 3 - Sci/Tech
+
+Classification report:
+              precision    recall  f1-score   support
+
+       World       0.20      0.20      0.20         5
+      Sports       0.50      0.20      0.29         5
+    Business       0.38      0.60      0.46         5
+    Sci/Tech       0.40      0.40      0.40         5
+
+    accuracy                           0.35        20
+   macro avg       0.37      0.35      0.34        20
+weighted avg       0.37      0.35      0.34        20
+
+
+Confusion matrix:
+[[1 1 2 1]
+ [0 1 3 1]
+ [1 0 3 1]
+ [3 0 0 2]]
