@@ -1,9 +1,4 @@
-"""
-real_data_embedding_experiment.py (with TXT output)
 
-使用预训练的 SentenceTransformer 语言模型 (all-MiniLM-L6-v2)
-对真实新闻数据做分类，并将结果写入 embedding_results.txt
-"""
 
 import pandas as pd
 import numpy as np

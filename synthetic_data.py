@@ -1,19 +1,9 @@
-"""
-synthetic_data.py
 
-专门负责生成用于新闻主题分类的合成数据（synthetic dataset）。
-包括 4 个类别：
-    0: World
-    1: Sports
-    2: Business
-    3: Sci/Tech
-"""
 
 import re
 import random
 from typing import List, Tuple
 
-# 类别名称（方便打印和分析用）
 TOPIC_NAMES = ["World", "Sports", "Business", "Sci/Tech"]
 
 
@@ -21,22 +11,10 @@ def generate_synthetic_news(
     n_per_class: int = 500,
     random_state: int = 42,
 ) -> Tuple[List[str], List[int]]:
-    """
-    为 4 个主题生成合成新闻标题：
-        0: World
-        1: Sports
-        2: Business
-        3: Sci/Tech
 
-    :param n_per_class: 每个类别生成多少条样本
-    :param random_state: 随机种子，保证可复现
-    :return: (texts, labels)
-        texts: List[str]，合成的新闻标题
-        labels: List[int]，对应的主题标签（0..3）
-    """
     random.seed(random_state)
 
-    # 每个类别对应的一些模板
+
     templates = {
         0: [  # World
             "leaders discuss {issue} in {region} summit",
@@ -60,7 +38,6 @@ def generate_synthetic_news(
         ],
     }
 
-    # 模板里的槽位可选值
     slot_values = {
         "issue": [
             "climate change",
@@ -120,7 +97,6 @@ def generate_synthetic_news(
 
 
 if __name__ == "__main__":
-    # 小测试：运行这个文件时，简单打印几条合成数据看看格式
     texts, labels = generate_synthetic_news(n_per_class=5, random_state=0)
     for t, y in zip(texts, labels):
         print(f"[{y} - {TOPIC_NAMES[y]}] {t}")

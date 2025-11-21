@@ -1,14 +1,4 @@
-"""
-lm_experiments.py (with TXT output, REAL DATA version)
 
-在真实新闻数据 (training_data.csv / test_data.csv) 上运行 4 个 n-gram LM 实验：
-1) 不同 n-gram 阶数 (1, 2, 3, 4) 的性能对比
-2) 不同平滑系数 alpha 对性能的影响
-3) 不同训练集大小 (100%, 50%, 20%) 对性能的影响
-4) 在干净 vs 加噪声的测试集上的鲁棒性对比
-
-所有实验输出统一写入 lm_experiments_results.txt。
-"""
 
 import random
 import sys
@@ -21,19 +11,12 @@ from lm_classifier import (
     ClassConditionalLMClassifier,
 )
 
-# 真实数据的类别名称（与其他脚本保持一致）
+
 TOPIC_NAMES = ["World", "Sports", "Business", "Sci/Tech"]
 
 
-# ------------------------------------------------
-# 捕获所有 print 输出，以写入 txt 文件
-# ------------------------------------------------
-
 def capture_output_to_txt(func):
-    """
-    一个装饰器，用来捕获函数内部所有 print 输出，
-    并统一写入 lm_experiments_results.txt。
-    """
+
 
     def wrapper(*args, **kwargs):
         buffer = StringIO()
@@ -53,19 +36,12 @@ def capture_output_to_txt(func):
     return wrapper
 
 
-# ------------------------------------------------
-# 数据集生成：改为读取真实数据
-# ------------------------------------------------
 
 def load_real_data(
     train_path: str = "training_data.csv",
     test_path: str = "test_data.csv",
 ) -> Tuple[List[str], List[int], List[str], List[int]]:
-    """
-    读取真实数据：
-      - training_data.csv: 有 header, columns = ['text', 'label']
-      - test_data.csv    : 无 header，这里强制设为 ['text', 'label']
-    """
+
     train_df = pd.read_csv(train_path)
     if not {"text", "label"} <= set(train_df.columns):
         raise ValueError(
@@ -80,7 +56,7 @@ def load_real_data(
     test_df["text"] = test_df["text"].astype(str)
     test_df["label"] = test_df["label"].astype(int)
 
-    # 去掉空文本
+
     train_df = train_df[train_df["text"].str.strip() != ""]
     test_df = test_df[test_df["text"].str.strip() != ""]
 
@@ -93,10 +69,7 @@ def load_real_data(
 
 
 def get_base_dataset():
-    """
-    为所有实验提供统一的 (X_train, X_test, y_train, y_test)，
-    使用真实新闻数据，而不是 synthetic_data。
-    """
+
     X_train, y_train, X_test, y_test = load_real_data()
     print("[INFO] Loaded REAL dataset for experiments:")
     print(f"  Train size = {len(X_train)}")
@@ -104,9 +77,6 @@ def get_base_dataset():
     return X_train, X_test, y_train, y_test
 
 
-# ------------------------------------------------
-# 实验 1：不同 n-gram 阶数
-# ------------------------------------------------
 
 def experiment_ngram_orders():
     print("\n=== Experiment 1: Unigram vs Bigram vs Trigram vs 4-gram (REAL data) ===")
@@ -132,9 +102,6 @@ def experiment_ngram_orders():
     print("- 4-gram on REAL short headlines likely suffers heavy sparsity.\n")
 
 
-# ------------------------------------------------
-# 实验 2：不同 alpha（平滑系数）
-# ------------------------------------------------
 
 def experiment_smoothing_alphas():
     print("\n=== Experiment 2: Effect of smoothing alpha (trigram, REAL data) ===")
@@ -158,10 +125,6 @@ def experiment_smoothing_alphas():
     print("- Larger alpha → stronger smoothing, probabilities more uniform.")
     print("- On REAL data, too much smoothing can blur class differences.\n")
 
-
-# ------------------------------------------------
-# 实验 3：训练集大小（100%, 50%, 20%）
-# ------------------------------------------------
 
 def subsample_train(
     X_train: List[str],
@@ -203,20 +166,16 @@ def experiment_train_size():
     print("- Good figure: accuracy vs. train fraction on REAL dataset.\n")
 
 
-# ------------------------------------------------
-# 实验 4：加噪声鲁棒性（在真实数据上）
-# ------------------------------------------------
-
 def noisify_text(text: str, p_delete: float = 0.2, p_swap: float = 0.2):
     tokens = text.split()
     if not tokens:
         return text
 
-    # 删除词
+
     if random.random() < p_delete and len(tokens) > 1:
         del tokens[random.randrange(len(tokens))]
 
-    # 交换相邻词
+
     if random.random() < p_swap and len(tokens) > 1:
         i = random.randrange(len(tokens) - 1)
         tokens[i], tokens[i + 1] = tokens[i + 1], tokens[i]
@@ -255,11 +214,6 @@ def experiment_noise_robustness():
     print("- If accuracy drops a lot on noisy REAL headlines,")
     print("  it shows n-gram LM is sensitive to word deletion/reordering.")
     print("- This is an important CON for Method A in the report.\n")
-
-
-# ------------------------------------------------
-# 主入口：统一写入 txt
-# ------------------------------------------------
 
 @capture_output_to_txt
 def run_all_experiments():
