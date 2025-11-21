@@ -1,0 +1,96 @@
+
+=== Experiment 1: Unigram vs Bigram vs Trigram vs 4-gram (REAL data) ===
+[INFO] Loaded REAL dataset for experiments:
+  Train size = 120000
+  Test  size = 20
+
+n-gram order	Accuracy (REAL data)
+1		0.3500
+2		0.3500
+3		0.3500
+4		0.3500
+
+(Interpretation suggestion)
+- Unigram ignores word order → usually weakest.
+- Bigram adds minimal context.
+- Trigram often best balance between context and sparsity.
+- 4-gram on REAL short headlines likely suffers heavy sparsity.
+
+
+=== Experiment 2: Effect of smoothing alpha (trigram, REAL data) ===
+[INFO] Loaded REAL dataset for experiments:
+  Train size = 120000
+  Test  size = 20
+
+alpha	Accuracy (REAL data)
+0.10	0.4000
+0.50	0.3500
+1.00	0.3000
+
+(Interpretation suggestion)
+- Smaller alpha → rely more on observed n-gram counts.
+- Larger alpha → stronger smoothing, probabilities more uniform.
+- On REAL data, too much smoothing can blur class differences.
+
+
+=== Experiment 3: Effect of training set size (REAL data) ===
+[INFO] Loaded REAL dataset for experiments:
+  Train size = 120000
+  Test  size = 20
+
+Train fraction	#Train samples	Accuracy (REAL data)
+1.0		120000		0.3500
+0.5		60000		0.3000
+0.2		24000		0.1500
+
+(Interpretation suggestion)
+- As we reduce REAL training data, sparsity becomes more severe.
+- Performance drop quantifies how data-hungry n-gram LMs are.
+- Good figure: accuracy vs. train fraction on REAL dataset.
+
+
+=== Experiment 4: Robustness to noisy REAL test input ===
+[INFO] Loaded REAL dataset for experiments:
+  Train size = 120000
+  Test  size = 20
+
+Accuracy on CLEAN REAL test set : 0.3500
+Accuracy on NOISY REAL test set : 0.3500
+
+Sample clean vs noisy examples (REAL data):
+------------------------------------------------------------
+CLEAN: Three quarters of financial firms still conducting anti-money laundering checks manually
+NOISY: Three quarters of financial firms still conducting anti-money laundering checks manually
+True label : 2 - Business
+Pred clean : 0 - World
+Pred noisy : 0 - World
+------------------------------------------------------------
+CLEAN: European stocks rally on hope ECB may be done with interest rate hikes
+NOISY: European stocks rally on hope ECB may be done with interest rate hikes
+True label : 2 - Business
+Pred clean : 2 - Business
+Pred noisy : 2 - Business
+------------------------------------------------------------
+CLEAN: Gold prices have hit a new high, while the value of Bitcoin has also surged.
+NOISY: Gold prices have a hit new high, while the value Bitcoin has also surged.
+True label : 2 - Business
+Pred clean : 2 - Business
+Pred noisy : 2 - Business
+------------------------------------------------------------
+CLEAN: Why food discount stickers may be a thing of the past
+NOISY: Why food discount stickers may be a thing of the past
+True label : 2 - Business
+Pred clean : 3 - Sci/Tech
+Pred noisy : 3 - Sci/Tech
+------------------------------------------------------------
+CLEAN: German cabinet tries to solve ‘no-debt’ crisis after court outlaws budget
+NOISY: German cabinet tries to solve ‘no-debt’ crisis after court outlaws budget
+True label : 2 - Business
+Pred clean : 2 - Business
+Pred noisy : 2 - Business
+
+(Interpretation suggestion)
+- If accuracy drops a lot on noisy REAL headlines,
+  it shows n-gram LM is sensitive to word deletion/reordering.
+- This is an important CON for Method A in the report.
+
