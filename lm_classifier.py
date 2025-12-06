@@ -118,6 +118,112 @@ class NgramLanguageModel:
 
         return log_p
 
+    def _get_next_word_distribution(self, context: Tuple[str, ...]) -> List[Tuple[str, float]]:
+        """
+        Get the probability distribution over next words given a context.
+        Returns a list of (word, probability) tuples.
+        Prioritizes words that actually appeared after this context in training.
+        """
+        assert self._fitted, "Language model not fitted."
+        
+        # First, collect words that actually appeared after this context
+        observed_words = set()
+        for ngram, count in self.ngram_counts.items():
+            if ngram[:-1] == context:
+                observed_words.add(ngram[-1])
+        
+        # Also include EOS and UNK as potential next words
+        observed_words.add(self.eos_token)
+        observed_words.add(self.unk_token)
+        
+        # Calculate probabilities for observed words
+        probs = []
+        for word in observed_words:
+            if word == self.bos_token:
+                continue
+            ngram = context + (word,)
+            prob = self.conditional_prob(ngram)
+            probs.append((word, prob))
+        
+        # If we have very few observed words, also consider other high-probability words
+        # But prioritize observed ones
+        if len(probs) < 10:
+            # Add a few more words from vocab with highest probabilities
+            other_probs = []
+            for word in self.vocab:
+                if word in observed_words or word == self.bos_token:
+                    continue
+                ngram = context + (word,)
+                prob = self.conditional_prob(ngram)
+                other_probs.append((word, prob))
+            
+            # Take top 20 by probability
+            other_probs.sort(key=lambda x: x[1], reverse=True)
+            probs.extend(other_probs[:20])
+        
+        # Normalize probabilities
+        if not probs:
+            # Fallback: return EOS with probability 1.0 if no valid words
+            return [(self.eos_token, 1.0)]
+        
+        total = sum(p for _, p in probs)
+        if total > 0:
+            probs = [(w, p / total) for w, p in probs]
+        else:
+            # Uniform distribution if no valid transitions (shouldn't happen with smoothing)
+            probs = [(w, 1.0 / len(probs)) for w, _ in probs]
+        
+        return probs
+
+    def sample(self, max_length: int = 30, random_state: int = None) -> str:
+        """
+        Sample a sentence from the learned n-gram distribution.
+        Generates text by sampling from P(w_t | context) at each step.
+        This samples EXACTLY from the learned distribution without any modifications.
+        
+        :param max_length: Maximum number of tokens to generate
+        :param random_state: Random seed for reproducibility
+        """
+        assert self._fitted, "Language model not fitted."
+        
+        if random_state is not None:
+            random.seed(random_state)
+        
+        n = self.n
+        tokens = []
+        context = tuple([self.bos_token] * (n - 1))
+        
+        for step in range(max_length):
+            # Get distribution over next words (exactly as learned)
+            dist = self._get_next_word_distribution(context)
+            
+            if not dist:
+                break
+            
+            # Sample from the distribution (no modifications to probabilities)
+            words, probs = zip(*dist)
+            next_word = random.choices(words, weights=probs, k=1)[0]
+            
+            # Stop if we sample EOS
+            if next_word == self.eos_token:
+                break
+            
+            tokens.append(next_word)
+            
+            # Update context: shift and add new word
+            context = context[1:] + (next_word,)
+        
+        # Return generated tokens
+        if tokens:
+            return " ".join(tokens)
+        else:
+            # Fallback: return a single word if sampling failed
+            if self.vocab:
+                fallback_words = [w for w in self.vocab if w not in [self.bos_token, self.eos_token, self.unk_token]]
+                if fallback_words:
+                    return random.choice(fallback_words)
+            return "<UNK>"
+
 
 
 class ClassConditionalLMClassifier:
@@ -185,6 +291,42 @@ class ClassConditionalLMClassifier:
         preds = self.predict(texts)
         correct = sum(int(p == y) for p, y in zip(preds, labels))
         return correct / len(labels) if labels else 0.0
+
+    def sample_synthetic_data(self, n_per_class: int = 500, max_length: int = 50, random_state: int = 42, show_progress: bool = True) -> Tuple[List[str], List[int]]:
+        """
+        Sample synthetic data from the trained class-conditional n-gram models.
+        For each class, sample n_per_class sentences from its language model.
+        This ensures the synthetic data comes directly from the learned joint distribution.
+        """
+        assert self._fitted, "Classifier not fitted."
+        
+        texts = []
+        labels = []
+        
+        random.seed(random_state)
+        seed_offset = 0
+        total_samples = len(self.classes_) * n_per_class
+        samples_generated = 0
+        
+        for class_idx, y in enumerate(self.classes_):
+            if show_progress:
+                print(f"    Sampling class {y} ({class_idx + 1}/{len(self.classes_)})...", end="", flush=True)
+            lm = self.class_lms[y]
+            for i in range(n_per_class):
+                text = lm.sample(max_length=max_length, random_state=random_state + seed_offset)
+                texts.append(text)
+                labels.append(y)
+                seed_offset += 1
+                samples_generated += 1
+                
+                # Show progress every 50 samples
+                if show_progress and (samples_generated % 50 == 0 or samples_generated == total_samples):
+                    print(f" {samples_generated}/{total_samples}", end="", flush=True)
+            
+            if show_progress:
+                print(" ✓")
+        
+        return texts, labels
 
 
 

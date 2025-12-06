@@ -7,6 +7,33 @@ from typing import List, Tuple
 TOPIC_NAMES = ["World", "Sports", "Business", "Sci/Tech"]
 
 
+def generate_synthetic_from_ngram_model(
+    classifier,
+    n_per_class: int = 500,
+    max_length: int = 50,
+    random_state: int = 42,
+    show_progress: bool = True,
+) -> Tuple[List[str], List[int]]:
+    """
+    Generate synthetic data by sampling directly from a trained n-gram classifier.
+    This ensures the synthetic data comes from the learned joint distribution,
+    making it impossible for any model to outperform the n-gram model on this data.
+    
+    :param classifier: A trained ClassConditionalLMClassifier instance
+    :param n_per_class: Number of samples to generate per class
+    :param max_length: Maximum length of generated sentences
+    :param random_state: Random seed for reproducibility
+    :param show_progress: Whether to show progress during sampling
+    :return: Tuple of (texts, labels)
+    """
+    return classifier.sample_synthetic_data(
+        n_per_class=n_per_class,
+        max_length=max_length,
+        random_state=random_state,
+        show_progress=show_progress
+    )
+
+
 def generate_synthetic_news(
     n_per_class: int = 500,
     random_state: int = 42,

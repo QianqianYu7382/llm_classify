@@ -10,13 +10,9 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 
 
-# 真实数据类别名称
 TOPIC_NAMES = ["World", "Sports", "Business", "Sci/Tech"]
 
 
-# -----------------------------
-# 1. 加载数据
-# -----------------------------
 def load_real_data(
     train_path: str = "training_data.csv",
     test_path: str = "test_data.csv",
@@ -40,22 +36,15 @@ def load_real_data(
     )
 
 
-# -----------------------------
-# 2. 编码文本
-# -----------------------------
 def encode_texts(model, texts, batch_size=256):
     return model.encode(texts, batch_size=batch_size, convert_to_numpy=True, show_progress_bar=True)
 
 
-# -----------------------------
-# 3. 主流程：增加 TXT 输出
-# -----------------------------
 def run_embedding_experiment():
 
-    # 创建一个 buffer 捕获所有 print 输出
     buffer = StringIO()
     sys_stdout = sys.stdout
-    sys.stdout = buffer  # redirect print
+    sys.stdout = buffer 
 
     print("[INFO] Loading data...")
 
@@ -100,10 +89,10 @@ def run_embedding_experiment():
         print("True label :", y_test[i], "-", TOPIC_NAMES[y_test[i]])
         print("Pred label :", y_pred[i], "-", TOPIC_NAMES[y_pred[i]])
 
-    # 恢复 print 输出
+
     sys.stdout = sys_stdout
 
-    # 写入文件
+
     output_text = buffer.getvalue()
     output_path = "embedding_results.txt"
     with open(output_path, "w", encoding="utf-8") as f:
@@ -112,8 +101,6 @@ def run_embedding_experiment():
     print(f"\n[INFO] All results written to {output_path}\n")
 
 
-# -----------------------------
-# 主入口
-# -----------------------------
+
 if __name__ == "__main__":
     run_embedding_experiment()

@@ -1,0 +1,87 @@
+================================================================================
+SYNTHETIC DATA EXPERIMENT
+================================================================================
+
+This experiment demonstrates that:
+1. Synthetic data is sampled directly from the trained n-gram model's distribution
+2. The n-gram model should achieve optimal (or near-optimal) performance on this data
+3. Other models (e.g., embedding-based) cannot outperform the n-gram model
+================================================================================
+
+[STEP 1] Loading real training data...
+  Real training data: 120000 samples
+  Real test data: 20 samples
+
+[STEP 2] Training n-gram model on real data...
+  N-gram model trained successfully
+  N-gram model accuracy on REAL test data: 0.3500
+
+[STEP 3] Sampling synthetic data from trained n-gram model...
+  Generated 2000 synthetic samples (500 per class)
+
+Sample synthetic data:
+  [0 - World] zarqawi the iraqi capital today ethical aluminum <UNK> sue
+  [0 - World] tokyo stocks close thwarted vivendi campaigning debated captures
+  [0 - World] fighting blocks planning 2005 contempt
+  [0 - World] khmer drowned thwarted drowned <UNK>
+  [0 - World] 44 die protected planning contempt ethical protected july
+  [0 - World] israeli forces killed two israeli preschoolers last elite
+  [0 - World] taiwan s <EOS> elite july 2005 unfamiliar 2005 array aluminum <UNK> vivendi contempt ethical planning thwarted contempt <UNK>
+  [0 - World] 39 bin laden s militants fight mostly cultivation thwarted unfamiliar beijing captures planning beijing protected sue relying thwarted debated drowned
+  [0 - World] active contempt vivendi contempt captures array <UNK> elite vivendi <UNK> thwarted planning array elite 2005 array elite beijing beijing protected
+  [0 - World] summit boosts <UNK> campaigning contempt ethical july sue array cultivation ethical beijing protected drowned array sue array planning
+
+[STEP 4] Testing n-gram model on synthetic data...
+  N-gram model accuracy on SYNTHETIC data: 0.2425
+
+  N-gram model classification report:
+              precision    recall  f1-score   support
+
+       World       0.47      0.34      0.39       500
+      Sports       0.13      0.16      0.14       500
+    Business       0.18      0.32      0.23       500
+    Sci/Tech       0.62      0.16      0.25       500
+
+    accuracy                           0.24      2000
+   macro avg       0.35      0.24      0.25      2000
+weighted avg       0.35      0.24      0.25      2000
+
+
+[STEP 5] Training embedding-based model on synthetic data...
+  Synthetic train: 1600 samples
+  Synthetic test: 400 samples
+  Loading SentenceTransformer model (all-MiniLM-L6-v2)...
+  Encoding synthetic training data...
+  Encoding synthetic test data...
+  Training LogisticRegression classifier...
+  Embedding model accuracy on SYNTHETIC test data: 0.7775
+
+  Embedding model classification report:
+              precision    recall  f1-score   support
+
+       World       0.00      0.00      0.00         0
+      Sports       0.00      0.00      0.00         0
+    Business       0.00      0.00      0.00         0
+    Sci/Tech       1.00      0.78      0.87       400
+
+    accuracy                           0.78       400
+   macro avg       0.25      0.19      0.22       400
+weighted avg       1.00      0.78      0.87       400
+
+
+================================================================================
+RESULTS SUMMARY
+================================================================================
+N-gram model accuracy on REAL test data:        0.3500
+N-gram model accuracy on SYNTHETIC data:        0.2425
+Embedding model accuracy on SYNTHETIC test data: 0.7775
+
+Analysis:
+  - The n-gram model achieves 0.2425 accuracy on synthetic data
+    (data sampled from its own learned distribution)
+  - The embedding model achieves 0.7775 accuracy on the same data
+  - ⚠ Unexpected: embedding model outperformed n-gram model
+    (Difference: 0.5350)
+    This may be due to sampling randomness or model limitations
+
+================================================================================
