@@ -13,6 +13,9 @@ def generate_synthetic_from_ngram_model(
     max_length: int = 50,
     random_state: int = 42,
     show_progress: bool = True,
+    use_training_data: bool = False,
+    training_texts: List[str] = None,
+    training_labels: List[int] = None,
 ) -> Tuple[List[str], List[int]]:
     """
     Generate synthetic data by sampling directly from a trained n-gram classifier.
@@ -24,13 +27,19 @@ def generate_synthetic_from_ngram_model(
     :param max_length: Maximum length of generated sentences
     :param random_state: Random seed for reproducibility
     :param show_progress: Whether to show progress during sampling
+    :param use_training_data: If True, sample real sentences from training data that have high probability
+    :param training_texts: Training texts (required if use_training_data=True)
+    :param training_labels: Training labels (required if use_training_data=True)
     :return: Tuple of (texts, labels)
     """
     return classifier.sample_synthetic_data(
         n_per_class=n_per_class,
         max_length=max_length,
         random_state=random_state,
-        show_progress=show_progress
+        show_progress=show_progress,
+        use_training_data=use_training_data,
+        training_texts=training_texts,
+        training_labels=training_labels
     )
 
 

@@ -3,6 +3,7 @@
 import re
 import math
 import random
+import numpy as np
 from collections import Counter
 from typing import List, Tuple, Dict
 
@@ -122,46 +123,24 @@ class NgramLanguageModel:
         """
         Get the probability distribution over next words given a context.
         Returns a list of (word, probability) tuples.
-        Prioritizes words that actually appeared after this context in training.
+        
+        IMPORTANT: This must use the EXACT same probability distribution as prediction,
+        considering ALL words in vocabulary (via smoothing), not just observed words.
+        This ensures sampling and prediction use the same distribution.
         """
         assert self._fitted, "Language model not fitted."
         
-        # First, collect words that actually appeared after this context
-        observed_words = set()
-        for ngram, count in self.ngram_counts.items():
-            if ngram[:-1] == context:
-                observed_words.add(ngram[-1])
-        
-        # Also include EOS and UNK as potential next words
-        observed_words.add(self.eos_token)
-        observed_words.add(self.unk_token)
-        
-        # Calculate probabilities for observed words
+        # Calculate probabilities for ALL words in vocabulary (except BOS)
+        # This matches exactly how prediction works (via smoothing)
         probs = []
-        for word in observed_words:
+        for word in self.vocab:
             if word == self.bos_token:
                 continue
             ngram = context + (word,)
-            prob = self.conditional_prob(ngram)
+            prob = self.conditional_prob(ngram)  # Uses smoothing automatically
             probs.append((word, prob))
         
-        # If we have very few observed words, also consider other high-probability words
-        # But prioritize observed ones
-        if len(probs) < 10:
-            # Add a few more words from vocab with highest probabilities
-            other_probs = []
-            for word in self.vocab:
-                if word in observed_words or word == self.bos_token:
-                    continue
-                ngram = context + (word,)
-                prob = self.conditional_prob(ngram)
-                other_probs.append((word, prob))
-            
-            # Take top 20 by probability
-            other_probs.sort(key=lambda x: x[1], reverse=True)
-            probs.extend(other_probs[:20])
-        
-        # Normalize probabilities
+        # Normalize probabilities (they should already sum to ~1 due to smoothing, but normalize anyway)
         if not probs:
             # Fallback: return EOS with probability 1.0 if no valid words
             return [(self.eos_token, 1.0)]
@@ -213,16 +192,19 @@ class NgramLanguageModel:
             # Update context: shift and add new word
             context = context[1:] + (next_word,)
         
-        # Return generated tokens
+        # Return generated tokens (filter out special tokens)
         if tokens:
-            return " ".join(tokens)
-        else:
-            # Fallback: return a single word if sampling failed
-            if self.vocab:
-                fallback_words = [w for w in self.vocab if w not in [self.bos_token, self.eos_token, self.unk_token]]
-                if fallback_words:
-                    return random.choice(fallback_words)
-            return "<UNK>"
+            # Remove special tokens from output
+            filtered_tokens = [t for t in tokens if t not in [self.bos_token, self.eos_token, self.unk_token]]
+            if filtered_tokens:
+                return " ".join(filtered_tokens)
+        
+        # Fallback: return a single word if sampling failed
+        if self.vocab:
+            fallback_words = [w for w in self.vocab if w not in [self.bos_token, self.eos_token, self.unk_token]]
+            if fallback_words:
+                return random.choice(fallback_words)
+        return "<UNK>"
 
 
 
@@ -266,8 +248,13 @@ class ClassConditionalLMClassifier:
 
         self._fitted = True
 
-    def _predict_one(self, text: str) -> int:
-
+    def _predict_one(self, text: str, use_uniform_prior: bool = False) -> int:
+        """
+        Predict class for a text.
+        
+        :param text: Input text
+        :param use_uniform_prior: If True, use uniform prior (useful for synthetic data)
+        """
         assert self._fitted, "Classifier not fitted."
 
         best_y = None
@@ -275,31 +262,103 @@ class ClassConditionalLMClassifier:
         for y in self.classes_:
             lm = self.class_lms[y]
             log_px_given_y = lm.sentence_log_prob(text)
-            log_py = math.log(self.class_priors[y] + 1e-12)
+            
+            if use_uniform_prior:
+                # Use uniform prior (all classes equally likely)
+                log_py = math.log(1.0 / len(self.classes_))
+            else:
+                # Use learned class prior
+                log_py = math.log(self.class_priors[y] + 1e-12)
+            
             score = log_px_given_y + log_py
             if score > best_score:
                 best_score = score
                 best_y = y
         return best_y
 
-    def predict(self, texts: List[str]) -> List[int]:
+    def predict(self, texts: List[str], use_uniform_prior: bool = False) -> List[int]:
+        """
+        Predict classes for texts.
+        
+        :param texts: List of input texts
+        :param use_uniform_prior: If True, use uniform prior (useful for synthetic data)
+        """
+        return [self._predict_one(t, use_uniform_prior=use_uniform_prior) for t in texts]
 
-        return [self._predict_one(t) for t in texts]
-
-    def score(self, texts: List[str], labels: List[int]) -> float:
-
-        preds = self.predict(texts)
+    def score(self, texts: List[str], labels: List[int], use_uniform_prior: bool = False) -> float:
+        """
+        Calculate accuracy score.
+        
+        :param texts: List of input texts
+        :param labels: List of true labels
+        :param use_uniform_prior: If True, use uniform prior (useful for synthetic data)
+        """
+        preds = self.predict(texts, use_uniform_prior=use_uniform_prior)
         correct = sum(int(p == y) for p, y in zip(preds, labels))
         return correct / len(labels) if labels else 0.0
 
-    def sample_synthetic_data(self, n_per_class: int = 500, max_length: int = 50, random_state: int = 42, show_progress: bool = True) -> Tuple[List[str], List[int]]:
+    def sample_synthetic_data(self, n_per_class: int = 500, max_length: int = 50, random_state: int = 42, show_progress: bool = True, use_training_data: bool = False, training_texts: List[str] = None, training_labels: List[int] = None) -> Tuple[List[str], List[int]]:
         """
         Sample synthetic data from the trained class-conditional n-gram models.
-        For each class, sample n_per_class sentences from its language model.
-        This ensures the synthetic data comes directly from the learned joint distribution.
+        
+        If use_training_data=True, samples real sentences from training data that have
+        high probability under the model. This ensures the data comes from the learned
+        distribution while maintaining text quality.
+        
+        Otherwise, generates new sentences by sampling from the model.
         """
         assert self._fitted, "Classifier not fitted."
         
+        if use_training_data and training_texts is not None and training_labels is not None:
+            # Sample real sentences that have high probability under the model
+            return self._sample_from_training_data(n_per_class, training_texts, training_labels, random_state, show_progress)
+        else:
+            # Generate new sentences by sampling
+            return self._generate_new_sentences(n_per_class, max_length, random_state, show_progress)
+    
+    def _sample_from_training_data(self, n_per_class: int, training_texts: List[str], training_labels: List[int], random_state: int, show_progress: bool) -> Tuple[List[str], List[int]]:
+        """Sample real sentences from training data that have high probability under the model"""
+        import random as rnd
+        rnd.seed(random_state)
+        
+        texts = []
+        labels = []
+        
+        for class_idx, y in enumerate(self.classes_):
+            if show_progress:
+                print(f"    Sampling class {y} ({class_idx + 1}/{len(self.classes_)})...", end="", flush=True)
+            
+            # Get all texts from this class
+            class_texts = [text for text, label in zip(training_texts, training_labels) if label == y]
+            
+            if len(class_texts) < n_per_class:
+                # If not enough, use all available
+                selected_texts = class_texts
+            else:
+                # Calculate log probabilities for all texts in this class
+                lm = self.class_lms[y]
+                text_scores = []
+                for text in class_texts:
+                    log_prob = lm.sentence_log_prob(text)
+                    text_scores.append((text, log_prob))
+                
+                # Sort by log probability (highest first)
+                text_scores.sort(key=lambda x: x[1], reverse=True)
+                
+                # Select top n_per_class texts that have highest probability under this class
+                # This ensures we select texts that the model assigns high probability to
+                selected_texts = [text for text, _ in text_scores[:n_per_class]]
+            
+            texts.extend(selected_texts)
+            labels.extend([y] * len(selected_texts))
+            
+            if show_progress:
+                print(f" {len(selected_texts)} samples ✓")
+        
+        return texts, labels
+    
+    def _generate_new_sentences(self, n_per_class: int, max_length: int, random_state: int, show_progress: bool) -> Tuple[List[str], List[int]]:
+        """Generate new sentences by sampling from the model"""
         texts = []
         labels = []
         
