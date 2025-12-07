@@ -1,12 +1,3 @@
-
-"""
-Experiment: Test both n-gram and embedding models on synthetic data
-sampled directly from the trained n-gram model's learned distribution.
-
-This confirms that it's impossible to outperform the n-gram model on
-synthetic data generated from its own distribution.
-"""
-
 import sys
 import argparse
 from io import StringIO
@@ -27,7 +18,6 @@ def load_real_data(
     test_path: str = "test_data.csv",
     max_train_samples: int = None,
 ):
-    """Load real training and test data."""
     train_df = pd.read_csv(train_path)
     test_df = pd.read_csv(test_path, header=None, names=["text", "label"])
 
@@ -38,8 +28,6 @@ def load_real_data(
 
     train_df = train_df[train_df["text"].str.strip() != ""]
     test_df = test_df[test_df["text"].str.strip() != ""]
-    
-    # Limit training data if specified (for faster experiments)
     if max_train_samples and len(train_df) > max_train_samples:
         train_df = train_df.sample(n=max_train_samples, random_state=42).reset_index(drop=True)
         print(f"  [NOTE] Limited training data to {max_train_samples} samples for faster execution")
@@ -53,7 +41,6 @@ def load_real_data(
 
 
 def encode_texts(model, texts, batch_size=256):
-    """Encode texts using sentence transformer."""
     return model.encode(texts, batch_size=batch_size, convert_to_numpy=True, show_progress_bar=True)
 
 
@@ -62,18 +49,6 @@ def run_synthetic_data_experiment(
     n_per_class: int = 500,
     fast_mode: bool = False,
 ):
-    """
-    Main experiment:
-    1. Train n-gram model on real data
-    2. Sample synthetic data from the trained n-gram model
-    3. Test both n-gram and embedding models on synthetic data
-    4. Show numerical results
-    
-    :param max_train_samples: Maximum number of training samples to use (for speed)
-    :param n_per_class: Number of synthetic samples to generate per class
-    :param fast_mode: If True, use smaller datasets for faster execution
-    """
-    
     buffer = StringIO()
     sys_stdout = sys.stdout
     sys.stdout = buffer
@@ -89,8 +64,6 @@ def run_synthetic_data_experiment(
     print("3. Other models (e.g., embedding-based) cannot outperform the n-gram model")
     print("=" * 80)
     print()
-
-    # Step 1: Load real training data
     print("[STEP 1] Loading real training data...")
     X_train_real, y_train_real, X_test_real, y_test_real = load_real_data(
         max_train_samples=max_train_samples if fast_mode else None
@@ -99,52 +72,38 @@ def run_synthetic_data_experiment(
     print(f"  Real test data: {len(X_test_real)} samples")
     print(f"  [NOTE] Using {'reduced' if fast_mode else 'full'} dataset")
     print()
-
-    # Step 2: Train n-gram model on real data
     print("[STEP 2] Training n-gram model on real data...")
     ngram_clf = ClassConditionalLMClassifier(
-        n=3,              # trigram
+        n=3,
         unk_threshold=2,
         alpha=0.5,
     )
     ngram_clf.fit(X_train_real, y_train_real)
     print("  N-gram model trained successfully")
-    
-    # Evaluate n-gram model on real test data for reference
     ngram_acc_real = ngram_clf.score(X_test_real, y_test_real)
     print(f"  N-gram model accuracy on REAL test data: {ngram_acc_real:.4f}")
     print()
-
-    # Step 3: Sample synthetic data from the trained n-gram model
     print(f"[STEP 3] Sampling synthetic data from trained n-gram model...")
     print(f"  [METHOD] Selecting real sentences from training data with highest probability under the model")
     print(f"  This ensures data quality while maintaining distribution alignment.")
     print(f"  Generating {n_per_class} samples per class (total: {n_per_class * 4})...")
-    # Select real sentences from training data that have high probability under the model
-    # This ensures the data comes from the learned distribution while maintaining quality
     X_synthetic, y_synthetic = generate_synthetic_from_ngram_model(
         classifier=ngram_clf,
         n_per_class=n_per_class,
         max_length=20,
         random_state=42,
-        use_training_data=True,  # Use real sentences with high probability
+        use_training_data=True,
         training_texts=X_train_real,
         training_labels=y_train_real
     )
     print(f"  Generated {len(X_synthetic)} synthetic samples ({n_per_class} per class)")
     print()
-
-    # Show some sample synthetic data
     print("Sample synthetic data:")
     for i in range(min(10, len(X_synthetic))):
         print(f"  [{y_synthetic[i]} - {TOPIC_NAMES[y_synthetic[i]]}] {X_synthetic[i]}")
     print()
-
-    # Step 4: Test n-gram model on synthetic data
     print("[STEP 4] Testing n-gram model on synthetic data...")
     print("  [NOTE] Using uniform prior since synthetic data is uniformly generated per class")
-    
-    # Filter out empty or very short synthetic texts
     valid_indices = [i for i, text in enumerate(X_synthetic) if text and len(text.split()) >= 2]
     if len(valid_indices) < len(X_synthetic):
         print(f"  [NOTE] Filtered out {len(X_synthetic) - len(valid_indices)} invalid/too-short samples")
@@ -153,54 +112,35 @@ def run_synthetic_data_experiment(
     else:
         X_synthetic_valid = X_synthetic
         y_synthetic_valid = y_synthetic
-    
-    # Use uniform prior since synthetic data is uniformly generated
     ngram_acc_synthetic = ngram_clf.score(X_synthetic_valid, y_synthetic_valid, use_uniform_prior=True)
     print(f"  N-gram model accuracy on SYNTHETIC data (uniform prior): {ngram_acc_synthetic:.4f}")
-    
-    # Also test with learned prior for comparison
     ngram_acc_synthetic_learned = ngram_clf.score(X_synthetic_valid, y_synthetic_valid, use_uniform_prior=False)
     print(f"  N-gram model accuracy on SYNTHETIC data (learned prior): {ngram_acc_synthetic_learned:.4f}")
-    
-    # Detailed classification report for n-gram model
     ngram_preds = ngram_clf.predict(X_synthetic_valid, use_uniform_prior=True)
     print("\n  N-gram model classification report (uniform prior):")
     print(classification_report(y_synthetic_valid, ngram_preds, target_names=TOPIC_NAMES))
-    
-    # Show some prediction examples
     print("\n  Sample predictions (first 10):")
     for i in range(min(10, len(X_synthetic_valid))):
         print(f"    [{y_synthetic_valid[i]} - {TOPIC_NAMES[y_synthetic_valid[i]]}] "
               f"Pred: {ngram_preds[i]} - {TOPIC_NAMES[ngram_preds[i]]} | "
               f"Text: {X_synthetic_valid[i][:60]}...")
     print()
-
-    # Step 5: Train and test embedding-based model on synthetic data
     print("[STEP 5] Training embedding-based model on synthetic data...")
-    
-    # Split synthetic data into train/test (shuffle first to ensure balanced classes)
     from sklearn.model_selection import train_test_split
     X_syn_train, X_syn_test, y_syn_train, y_syn_test = train_test_split(
         X_synthetic, y_synthetic, 
         test_size=0.2, 
         random_state=42,
-        stratify=y_synthetic  # Ensure balanced class distribution
+        stratify=y_synthetic
     )
-    
     print(f"  Synthetic train: {len(X_syn_train)} samples")
     print(f"  Synthetic test: {len(X_syn_test)} samples")
-    
-    # Load embedding model
     print("  Loading SentenceTransformer model (all-MiniLM-L6-v2)...")
     st_model = SentenceTransformer("all-MiniLM-L6-v2")
-    
-    # Encode synthetic data
     print("  Encoding synthetic training data...")
     X_syn_train_emb = encode_texts(st_model, X_syn_train)
     print("  Encoding synthetic test data...")
     X_syn_test_emb = encode_texts(st_model, X_syn_test)
-    
-    # Train classifier
     print("  Training LogisticRegression classifier...")
     embedding_clf = LogisticRegression(
         max_iter=2000,
@@ -208,18 +148,12 @@ def run_synthetic_data_experiment(
         multi_class="multinomial",
     )
     embedding_clf.fit(X_syn_train_emb, y_syn_train)
-    
-    # Evaluate on synthetic test data
     embedding_preds = embedding_clf.predict(X_syn_test_emb)
     embedding_acc_synthetic = accuracy_score(y_syn_test, embedding_preds)
     print(f"  Embedding model accuracy on SYNTHETIC test data: {embedding_acc_synthetic:.4f}")
-    
-    # Detailed classification report for embedding model
     print("\n  Embedding model classification report:")
     print(classification_report(y_syn_test, embedding_preds, target_names=TOPIC_NAMES))
     print()
-
-    # Step 6: Summary and analysis
     print("=" * 80)
     print("RESULTS SUMMARY")
     print("=" * 80)
@@ -245,11 +179,7 @@ def run_synthetic_data_experiment(
     
     print()
     print("=" * 80)
-
-    # Restore stdout
     sys.stdout = sys_stdout
-
-    # Save results
     output_text = buffer.getvalue()
     output_path = "synthetic_data_experiment_results.txt"
     with open(output_path, "w", encoding="utf-8") as f:

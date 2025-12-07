@@ -1,189 +1,189 @@
-# 实验结构说明
+# Experiment Structure
 
-## 一、使用的模型
+## I. Models Used
 
-### 1. **N-gram 语言模型分类器 (ClassConditionalLMClassifier)**
-   - **类型**: 基于 n-gram 的生成式概率模型
-   - **参数**: 
-     - n=3 (trigram，使用3-gram)
-     - unk_threshold=2 (词频≤2的词映射为<UNK>)
-     - alpha=0.5 (加性平滑系数)
-   - **工作原理**:
-     - 为每个类别（World, Sports, Business, Sci/Tech）训练一个独立的 n-gram 语言模型
-     - 每个模型学习该类别的条件概率分布 P(x|y)
-     - 预测时使用贝叶斯规则：argmax_y [log P(x|y) + log P(y)]
-   - **特点**: 生成式模型，可以直接从学习到的分布中采样生成数据
-     - **简单理解**: 
-       - 生成式模型 = 不仅能"识别"数据，还能"创造"新数据
-       - 就像学会了写字的规律后，可以自己写出新的字
-       - N-gram 模型学会了"什么样的词会出现在一起"，所以可以按照这个规律生成新的句子
-       - 例如：学会了"World新闻常用词"，就能生成新的World类新闻标题
+### 1. **N-gram Language Model Classifier (ClassConditionalLMClassifier)**
+   - **Type**: N-gram based generative probabilistic model
+   - **Parameters**: 
+     - n=3 (trigram, using 3-gram)
+     - unk_threshold=2 (words with frequency ≤2 are mapped to <UNK>)
+     - alpha=0.5 (additive smoothing coefficient)
+   - **How it works**:
+     - Trains an independent n-gram language model for each class (World, Sports, Business, Sci/Tech)
+     - Each model learns the conditional probability distribution P(x|y) for that class
+     - Uses Bayes' rule for prediction: argmax_y [log P(x|y) + log P(y)]
+   - **Characteristics**: Generative model that can directly sample from the learned distribution to generate data
+     - **Simple understanding**: 
+       - Generative model = can not only "recognize" data, but also "create" new data
+       - Like learning the rules of writing, then being able to write new characters
+       - N-gram model learns "which words appear together", so it can generate new sentences following these patterns
+       - Example: After learning "words commonly used in World news", it can generate new World-class news headlines
 
-### 2. **Embedding 模型分类器 (SentenceTransformer + LogisticRegression)**
-   - **类型**: 基于嵌入向量的判别式模型
-   - **组件**:
-     - **SentenceTransformer**: `all-MiniLM-L6-v2` (将文本编码为384维向量)
-     - **分类器**: LogisticRegression (多分类，multinomial)
-   - **工作原理**:
-     - 将文本编码为固定维度的向量表示
-     - 使用逻辑回归在向量空间中进行分类
-   - **特点**: 判别式模型，不能生成数据，只能分类
-
----
-
-## 二、实验流程
-
-### **阶段 1: 训练 N-gram 模型**
-```
-输入: 真实训练数据 (training_data.csv, 120,000条)
-  ↓
-训练 ClassConditionalLMClassifier
-  ↓
-为每个类别训练一个 n-gram 语言模型
-  ↓
-输出: 训练好的 n-gram 分类器
-```
-
-**验证**: 在真实测试集上评估 n-gram 模型性能（作为参考基准）
+### 2. **Embedding Model Classifier (SentenceTransformer + LogisticRegression)**
+   - **Type**: Embedding vector-based discriminative model
+   - **Components**:
+     - **SentenceTransformer**: `all-MiniLM-L6-v2` (encodes text into 384-dimensional vectors)
+     - **Classifier**: LogisticRegression (multiclass, multinomial)
+   - **How it works**:
+     - Encodes text into fixed-dimensional vector representations
+     - Uses logistic regression for classification in vector space
+   - **Characteristics**: Discriminative model, cannot generate data, only classifies
 
 ---
 
-### **阶段 2: 生成合成数据**
+## II. Experiment Flow
+
+### **Stage 1: Train N-gram Model**
 ```
-使用训练好的 n-gram 分类器
+Input: Real training data (training_data.csv, 120,000 samples)
   ↓
-对每个类别 (0,1,2,3):
-  - 使用该类别的 n-gram 语言模型
-  - 从学习到的分布 P(x|y) 中采样
-  - 生成 n_per_class 条句子
+Train ClassConditionalLMClassifier
   ↓
-输出: 合成数据集
-  - 总样本数: n_per_class × 4 个类别
-  - 每个样本都有真实标签（生成时已知）
+Train an n-gram language model for each class
+  ↓
+Output: Trained n-gram classifier
 ```
 
-**关键点**: 
-- 合成数据完全来自 n-gram 模型学习到的联合分布
-- 没有使用任何模板或人工规则
-- 采样过程严格按照学习到的概率分布进行
+**Verification**: Evaluate n-gram model performance on real test set (as reference baseline)
 
 ---
 
-### **阶段 3: 测试 N-gram 模型**
+### **Stage 2: Generate Synthetic Data**
 ```
-输入: 合成数据集（全部数据）
+Use trained n-gram classifier
   ↓
-使用训练好的 n-gram 分类器进行预测
+For each class (0,1,2,3):
+  - Use that class's n-gram language model
+  - Sample from learned distribution P(x|y)
+  - Generate n_per_class sentences
   ↓
-计算准确率和分类报告
-  ↓
-输出: N-gram 模型在合成数据上的性能
+Output: Synthetic dataset
+  - Total samples: n_per_class × 4 classes
+  - Each sample has true label (known at generation time)
 ```
 
-**说明**: 
-- 使用**同一个**在真实数据上训练的 n-gram 模型
-- 测试数据是从这个模型自己的分布中采样生成的
-- **理论上应该表现最优**（因为数据来自它自己的分布）
+**Key points**: 
+- Synthetic data completely comes from the n-gram model's learned joint distribution
+- No templates or manual rules used
+- Sampling process strictly follows learned probability distribution
 
 ---
 
-### **阶段 4: 训练并测试 Embedding 模型**
+### **Stage 3: Test N-gram Model**
 ```
-输入: 合成数据集
+Input: Synthetic dataset (all data)
   ↓
-划分: 80% 训练集 + 20% 测试集
+Use trained n-gram classifier for prediction
   ↓
-训练阶段:
-  - 使用 SentenceTransformer 编码训练文本
-  - 训练 LogisticRegression 分类器
+Calculate accuracy and classification report
   ↓
-测试阶段:
-  - 编码测试文本
-  - 使用训练好的分类器预测
-  ↓
-输出: Embedding 模型在合成数据上的性能
+Output: N-gram model performance on synthetic data
 ```
 
-**说明**:
-- Embedding 模型在合成数据上**重新训练**
-- 测试集与 n-gram 模型的测试集相同（都是合成数据）
-- **理论上不应该超越 n-gram 模型**（因为数据来自 n-gram 模型的分布）
+**Note**: 
+- Uses the **same** n-gram model trained on real data
+- Test data is sampled from this model's own distribution
+- **Should theoretically perform optimally** (because data comes from its own distribution)
 
 ---
 
-### **阶段 5: 结果比较**
+### **Stage 4: Train and Test Embedding Model**
 ```
-比较两个模型在合成数据上的性能:
-  - N-gram 模型准确率
-  - Embedding 模型准确率
-  - 详细分类报告（每个类别的 precision, recall, F1-score）
+Input: Synthetic dataset
+  ↓
+Split: 80% training set + 20% test set
+  ↓
+Training phase:
+  - Encode training texts using SentenceTransformer
+  - Train LogisticRegression classifier
+  ↓
+Testing phase:
+  - Encode test texts
+  - Predict using trained classifier
+  ↓
+Output: Embedding model performance on synthetic data
+```
+
+**Note**:
+- Embedding model is **retrained** on synthetic data
+- Test set is the same as n-gram model's test set (both are synthetic data)
+- **Should theoretically not outperform n-gram model** (because data comes from n-gram model's distribution)
+
+---
+
+### **Stage 5: Result Comparison**
+```
+Compare performance of both models on synthetic data:
+  - N-gram model accuracy
+  - Embedding model accuracy
+  - Detailed classification report (precision, recall, F1-score for each class)
 ```
 
 ---
 
-## 三、如何比较
+## III. How to Compare
 
-### **核心比较指标**
+### **Core Comparison Metrics**
 
-1. **总体准确率 (Accuracy)**
+1. **Overall Accuracy**
    ```
-   N-gram 模型准确率 vs Embedding 模型准确率
+   N-gram model accuracy vs Embedding model accuracy
    ```
-   - **预期结果**: N-gram 模型 ≥ Embedding 模型
-   - **原因**: 合成数据来自 n-gram 模型的分布，它应该最了解这些数据
+   - **Expected result**: N-gram model ≥ Embedding model
+   - **Reason**: Synthetic data comes from n-gram model's distribution, it should understand this data best
 
-2. **每个类别的性能**
+2. **Performance per Class**
    ```
-   查看分类报告中的:
-   - Precision (精确率)
-   - Recall (召回率)  
-   - F1-score (F1分数)
+   Check in classification report:
+   - Precision
+   - Recall  
+   - F1-score
    ```
-   - 可以看出哪个类别更容易分类
-   - 可以看出哪个模型在哪个类别上表现更好
+   - Can see which class is easier to classify
+   - Can see which model performs better on which class
 
-3. **对比真实数据上的表现**
+3. **Comparison with Real Data Performance**
    ```
-   N-gram 在真实数据上的准确率 (作为参考)
+   N-gram accuracy on real data (as reference)
    ```
-   - 用于理解模型在真实数据 vs 合成数据上的差异
+   - Used to understand model differences on real data vs synthetic data
 
 ---
 
-## 四、需要关注的结果数据
+## IV. Key Results to Focus On
 
-### **最重要的三个数字**
+### **Three Most Important Numbers**
 
-1. **N-gram 模型在合成数据上的准确率**
+1. **N-gram model accuracy on synthetic data**
    ```
-   例如: 0.8500 (85%)
+   Example: 0.8500 (85%)
    ```
-   - **含义**: n-gram 模型对自己生成的数据的分类准确率
-   - **重要性**: ⭐⭐⭐⭐⭐
-   - **预期**: 应该较高（理论上应该是最优的）
+   - **Meaning**: N-gram model's classification accuracy on its own generated data
+   - **Importance**: ⭐⭐⭐⭐⭐
+   - **Expected**: Should be high (theoretically should be optimal)
 
-2. **Embedding 模型在合成数据上的准确率**
+2. **Embedding model accuracy on synthetic data**
    ```
-   例如: 0.7200 (72%)
+   Example: 0.7200 (72%)
    ```
-   - **含义**: embedding 模型在合成数据上的分类准确率
-   - **重要性**: ⭐⭐⭐⭐⭐
-   - **预期**: 应该 ≤ n-gram 模型的准确率
+   - **Meaning**: Embedding model's classification accuracy on synthetic data
+   - **Importance**: ⭐⭐⭐⭐⭐
+   - **Expected**: Should ≤ n-gram model's accuracy
 
-3. **准确率差值**
+3. **Accuracy difference**
    ```
-   N-gram准确率 - Embedding准确率
-   例如: 0.8500 - 0.7200 = 0.1300 (13%)
+   N-gram accuracy - Embedding accuracy
+   Example: 0.8500 - 0.7200 = 0.1300 (13%)
    ```
-   - **含义**: n-gram 模型相对于 embedding 模型的优势
-   - **重要性**: ⭐⭐⭐⭐⭐
-   - **预期**: 应该 ≥ 0（证明 n-gram 模型无法被超越）
+   - **Meaning**: N-gram model's advantage over embedding model
+   - **Importance**: ⭐⭐⭐⭐⭐
+   - **Expected**: Should ≥ 0 (proves n-gram model cannot be outperformed)
 
 ---
 
-### **详细结果数据**
+### **Detailed Result Data**
 
-#### **1. N-gram 模型分类报告**
+#### **1. N-gram Model Classification Report**
 ```
               precision    recall  f1-score   support
 
@@ -194,12 +194,12 @@
 
     accuracy                           0.XX      2000
 ```
-- **关注点**: 
-  - 每个类别的性能是否均衡
-  - 哪个类别表现最好/最差
-  - 总体准确率
+- **Focus points**: 
+  - Whether performance is balanced across classes
+  - Which class performs best/worst
+  - Overall accuracy
 
-#### **2. Embedding 模型分类报告**
+#### **2. Embedding Model Classification Report**
 ```
               precision    recall  f1-score   support
 
@@ -210,11 +210,11 @@
 
     accuracy                           0.XX       400
 ```
-- **关注点**: 
-  - 与 n-gram 模型的对比
-  - 是否在所有类别上都低于 n-gram 模型
+- **Focus points**: 
+  - Comparison with n-gram model
+  - Whether it's lower than n-gram model on all classes
 
-#### **3. 结果摘要**
+#### **3. Result Summary**
 ```
 RESULTS SUMMARY
 ================================================================================
@@ -222,62 +222,61 @@ N-gram model accuracy on REAL test data:        0.3500
 N-gram model accuracy on SYNTHETIC data:        0.8500
 Embedding model accuracy on SYNTHETIC test data: 0.7200
 ```
-- **关注点**:
-  - 三个准确率的对比
-  - N-gram 在真实数据 vs 合成数据上的差异
-  - N-gram vs Embedding 在合成数据上的差异
+- **Focus points**:
+  - Comparison of three accuracies
+  - N-gram difference on real data vs synthetic data
+  - N-gram vs Embedding difference on synthetic data
 
 ---
 
-## 五、实验验证的核心假设
+## V. Core Hypothesis Being Tested
 
-### **理论假设**
-> "如果合成数据是从 n-gram 模型学习到的分布中直接采样的，那么 n-gram 模型应该在这些数据上表现最优，其他模型不应该能够超越它。"
+### **Theoretical Hypothesis**
+> "If synthetic data is directly sampled from the n-gram model's learned distribution, then the n-gram model should perform optimally on this data, and other models should not be able to outperform it."
 
-### **验证方法**
-1. ✅ 合成数据确实从 n-gram 模型的分布中采样（代码实现）
-2. ✅ 在相同的合成数据上测试两个模型（公平比较）
-3. ✅ 比较两个模型的准确率（数值验证）
+### **Verification Method**
+1. Synthetic data is indeed sampled from n-gram model's distribution (code implementation)
+2. Test both models on the same synthetic data (fair comparison)
+3. Compare accuracy of both models (numerical verification)
 
-### **预期结论**
-- **如果 N-gram 准确率 ≥ Embedding 准确率**: 
-  - ✅ 验证了假设
-  - ✅ 证明了 n-gram 模型在其自己的分布上无法被超越
+### **Expected Conclusion**
+- **If N-gram accuracy ≥ Embedding accuracy**: 
+  - Hypothesis verified
+  - Proves n-gram model cannot be outperformed on its own distribution
   
-- **如果 N-gram 准确率 < Embedding 准确率**: 
-  - ⚠️ 需要分析原因
-  - 可能的原因: 采样方法问题、模型实现问题、数据质量问题
+- **If N-gram accuracy < Embedding accuracy**: 
+  - Need to analyze reasons
+  - Possible causes: sampling method issues, model implementation issues, data quality issues
 
 ---
 
-## 六、结果解读示例
+## VI. Result Interpretation Examples
 
-### **理想结果**
+### **Ideal Result**
 ```
-N-gram 模型在合成数据上的准确率: 0.9000 (90%)
-Embedding 模型在合成数据上的准确率: 0.7500 (75%)
-差值: 0.1500 (15%)
+N-gram model accuracy on synthetic data: 0.9000 (90%)
+Embedding model accuracy on synthetic data: 0.7500 (75%)
+Difference: 0.1500 (15%)
 
-结论: ✓ 验证了假设，n-gram 模型在合成数据上表现最优
+Conclusion: ✓ Hypothesis verified, n-gram model performs optimally on synthetic data
 ```
 
-### **需要分析的结果**
+### **Result Requiring Analysis**
 ```
-N-gram 模型在合成数据上的准确率: 0.6000 (60%)
-Embedding 模型在合成数据上的准确率: 0.6500 (65%)
-差值: -0.0500 (-5%)
+N-gram model accuracy on synthetic data: 0.6000 (60%)
+Embedding model accuracy on synthetic data: 0.6500 (65%)
+Difference: -0.0500 (-5%)
 
-结论: ⚠️ 需要检查采样方法或模型实现
+Conclusion: Need to check sampling method or model implementation
 ```
 
 ---
 
-## 七、实验输出文件
+## VII. Experiment Output Files
 
-所有结果保存在: `synthetic_data_experiment_results.txt`
+All results saved in: `synthetic_data_experiment_results.txt`
 
-包含:
-- 完整的实验流程输出
-- 两个模型的分类报告
-- 结果摘要和分析
-
+Contains:
+- Complete experiment flow output
+- Classification reports for both models
+- Result summary and analysis
